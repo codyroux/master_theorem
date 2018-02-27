@@ -244,45 +244,6 @@ Qed.
 SearchAbout (_ * (_ / _) <= _).
 
 
-(* Theorem O_id : forall f, ValRel (T Var :== 2 *E (T (Var /E 2))) f -> *)
-(*                          f 1 = 1 -> *)
-(*                          f ∈O (fun n => n). *)
-(* Proof. *)
-(*   unfold ValRel; simpl. *)
-(*   intros f eqn. *)
-(*   o_of_n_bounds 1 1. *)
-(*   intros M geq; simpl. *)
-(*   replace (M + 0) with M by auto. *)
-(*   (* we need strong induction here *) *)
-(*   induction M as (M,IH) using lt_wf_ind. *)
-(*   case_eq M. *)
-(*   - omega. *)
-(*   - intros n eqM. *)
-(*     case_eq n. *)
-(*     * intros; omega. *)
-(*     * intros m eq_m; assert (H1 := eqn M); clear eqn. *)
-(*       assert (H2 : 1 < M). *)
-(*       + subst n; rewrite eqM; auto with arith. *)
-(*       + subst n; rewrite <- eqM. *)
-(*         assert (H3: f (M / 2) <= M / 2). *)
-(*         apply IH. *)
-(*         Search (_/_ < _). *)
-(*         apply Nat.div_lt; auto with arith. *)
-(*         apply (Nat.le_trans _ (2/2)). *)
-(*         auto with arith. *)
-(*         SearchAbout (_ <= _ / _). *)
-(*         apply Nat.div_le_mono; now auto with arith. *)
-
-(*         rewrite H1; replace (f (M / 2) + (f (M / 2) + 0)) with (f (M/2) + f (M/2)) by auto. *)
-(*         apply (Nat.le_trans _ ((M/2) + (M/2))). *)
-(*         SearchAbout (_+_<=_+_). *)
-(*         apply plus_le_compat; now auto. *)
-(*         replace (M / 2 + M / 2) with (2*(M/2)); try (now (simpl; auto with arith)). *)
-(*         apply Nat.mul_div_le; now auto. *)
-(* Qed. *)
-
-
-
 Theorem O_id : forall f, ValRel (T Var :== 2 *E (T (Var /E 2))) f ->
                          f ∈O (fun n => n).
 Proof.
