@@ -88,7 +88,18 @@ Ltac trivial_bounds := exists 0; exists 1.
 Ltac o_of_n_bounds n C := exists n; exists C.
 
 Ltac idk_bounds := eexists; eexists.
-                                 
+
+Ltac progress_le_goal := match goal with
+                         | [|- _ * _ <= _ * _] => apply mult_le_compat_l
+                         | [|- _ * _ <= _ * _] => apply mult_le_compat_r
+                         | [|- _ + _ <= _ + _] => apply plus_le_compat_l
+                         | [|- _ + _ <= _ + _] => apply plus_le_compat_r
+                         | [|- S _ <= S _ ] => apply le_n_S
+                         | [_ : ((Nat.max ?X _) <= _) |- ?X <= _ ] => eapply Nat.max_lub_l
+                         | [_ : ((Nat.max _ ?X) <= _) |- ?X <= _ ] => eapply Nat.max_lub_r
+                         end; eauto with arith.
+
+
 Lemma n_O_of_n_squared : (fun n => n) ∈O (fun n => n * n).
 Proof.
   trivial_bounds.
@@ -97,11 +108,9 @@ Proof.
   replace (M * M + 0) with (M*M) by auto.
   induction M; auto.
   simpl.
-  Search (S _ <= S _).
-  apply le_n_S.
-  Search (_ <= _ + _).
-  apply le_plus_l; auto.
+  now progress_le_goal.
 Qed.
+
 
 Theorem O_refl : forall f, f ∈O f.
 Proof.
@@ -115,17 +124,17 @@ Proof.
   o_of_n_bounds (Nat.max M1 M2) (C1 * C2).
   intros M lt.
   assert (f M <= C1 * g M).
-  apply H1.
-  Search (Nat.max _ _ <= _).
-  eapply Nat.max_lub_l; eauto.
-  assert (g M <= C2 * h M).
-  apply H2.
-  eapply Nat.max_lub_r; eauto.
-  assert (C1 * g M <= C1 * (C2 * h M)) by auto with arith.
-  eapply le_trans.
-  - exact H.
-  - Search (_*_*_).
-    rewrite <- mult_assoc; auto with arith.
+  - apply H1.
+    now progress_le_goal.
+
+  - assert (g M <= C2 * h M).
+    apply H2.
+    now progress_le_goal.
+    assert (C1 * g M <= C1 * (C2 * h M)) by auto with arith.
+    eapply le_trans.
+    * exact H.
+    * Search (_*_*_).
+      rewrite <- mult_assoc; now auto with arith.
 Qed.
 
 Theorem O_add_idempot : forall f g h, f ∈O (fun n => g n + h n) -> h ∈O g -> f ∈O g.
@@ -136,13 +145,14 @@ Proof.
   SearchAbout ((_ + _)*_).
   rewrite Nat.mul_add_distr_r.
   Check mult_assoc_reverse.
-  rewrite mult_assoc_reverse.
-  SearchAbout (_<=_).
+  rewrite <- mult_assoc.
   apply (Nat.le_trans _ (C1 * g M + C1 * h M)).
   - rewrite <- Nat.mul_add_distr_l.
     apply H1.
-    eapply Nat.max_lub_l; now eauto.
-  - SearchAbout (_ + _ <= _ + _).
+    now progress_le_goal.
+  - progress_le_goal.
+
+    SearchAbout (_ + _ <= _ + _).
     apply plus_le_compat_l.
     apply mult_le_compat_l.
     apply H2; eapply Nat.max_lub_r; now eauto.
@@ -305,7 +315,22 @@ Lemma baby_master_theorem_1 : forall g f a n,
     -> g ∈O (fun k => k ^ n)
     -> f ∈O (fun k => k ^ (Nat.log2_up a)).
 Proof.
-  intros g f a n crit f_eqn g_o_n; idk_bounds.
+  intros g f a n crit f_eqn g_o_n.
+  (* idk_bounds ?[n] ?[C]. *)
+  eexists ?[n].
+  eexists ?[C].
+  intros M m.
+  induction M as (M, IH) using lt_wf_ind.
+  unfold ValRel in f_eqn; simpl in f_eqn.
+  rewrite f_eqn.
+  specialize IH with (m:= M/2).
+  eapply (Nat.le_trans _ (a * (?C * (M / 2) ^ Nat.log2_up a) + g M)).
+  (* This really needs to be a tactic *)
+  apply plus_le_compat_r.
+  apply mult_le_compat_l.
+  apply IH; auto with arith.
+  (* assert (H : (f (M/2) <= ?C * (M/2) ^ Nat.log2_up a)). *)
+  
 Admitted.
 
 Variable log : nat -> nat -> nat.
