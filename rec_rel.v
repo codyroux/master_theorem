@@ -1,4 +1,6 @@
 Require Import Arith.
+Require Import Omega.
+
 
 Module RecRel.
 
@@ -89,15 +91,48 @@ Ltac o_of_n_bounds n C := exists n; exists C.
 
 Ltac idk_bounds := eexists; eexists.
 
-Ltac progress_le_goal := match goal with
+Lemma mul_le_r : forall n m k, k > 0 -> n <= m -> n <= m * k.
+Proof.
+  intros n m.
+  induction k.
+  - omega.
+  -  rewrite Nat.mul_comm in *.
+     simpl.
+     intros.
+     auto with arith.
+Qed.
+
+Lemma mul_le_l : forall n m k, k > 0 -> n <= m -> n <= k * m.
+Proof.
+  intros n m.
+  induction k.
+  - omega.
+  -  simpl.
+     intros.
+     auto with arith.
+Qed.
+
+Ltac fast_progress_le_goal := match goal with
                          | [|- _ * _ <= _ * _] => apply mult_le_compat_l
                          | [|- _ * _ <= _ * _] => apply mult_le_compat_r
                          | [|- _ + _ <= _ + _] => apply plus_le_compat_l
                          | [|- _ + _ <= _ + _] => apply plus_le_compat_r
-                         | [|- S _ <= S _ ] => apply le_n_S
-                         | [_ : ((Nat.max ?X _) <= _) |- ?X <= _ ] => eapply Nat.max_lub_l
-                         | [_ : ((Nat.max _ ?X) <= _) |- ?X <= _ ] => eapply Nat.max_lub_r
-                         end; eauto with arith.
+                         | [|- S _ <= S _]     => apply le_n_S
+                         | [|- ?X / _ < ?X]    => apply Nat.div_lt
+                         | [|- _ / ?X <= _ / ?X] => apply Nat.div_le_mono
+                         | [|- ?X * (?Y / ?X) <= ?Y] => apply Nat.mul_div_le
+                         | [|- _ ^ ?X <= _ ^ ?X] => apply Nat.pow_le_mono_l
+                         | [|- ?X ^ _ <= ?X ^ _] => apply Nat.pow_le_mono_r
+                         | [|- _ <= _ * _]     => apply mul_le_r; now auto with arith
+                         | [|- _ <= _ * _]     => apply mul_le_l; now auto with arith
+                         end; auto with arith.
+
+
+Ltac progress_le_goal := try
+                           (match goal with
+                            | [_ : ((Nat.max ?X _) <= _) |- ?X <= _ ] => eapply Nat.max_lub_l; eauto with arith
+                            | [_ : ((Nat.max _ ?X) <= _) |- ?X <= _ ] => eapply Nat.max_lub_r; eauto with arith
+                            end); fast_progress_le_goal.
 
 
 Lemma n_O_of_n_squared : (fun n => n) ∈O (fun n => n * n).
@@ -150,31 +185,15 @@ Proof.
   - rewrite <- Nat.mul_add_distr_l.
     apply H1.
     now progress_le_goal.
-  - progress_le_goal.
-
-    SearchAbout (_ + _ <= _ + _).
-    apply plus_le_compat_l.
-    apply mult_le_compat_l.
-    apply H2; eapply Nat.max_lub_r; now eauto.
+  - repeat fast_progress_le_goal.
+    apply H2.
+    progress_le_goal.
 Qed.
+
 
 Definition monotone f := forall n m, n <= m -> f n <= f m.
 
 Definition non_zero f := exists k:nat, f k > 0.
-
-Require Import Omega.
-
-Lemma mul_lt_r : forall n m k, k > 0 -> n <= m -> n <= m * k.
-Proof.
-  intros n m.
-  induction k.
-  - omega.
-  -  rewrite Nat.mul_comm in *.
-     simpl.
-     intros.
-     SearchAbout (_ <= _ + _).
-     auto with arith.
-Qed.
 
 Theorem O_mul_hyp : forall f g C, f ∈O (fun k => C * g k) -> f ∈O g.
 Proof.
@@ -190,12 +209,8 @@ Proof.
   intros f g C nz (M, (C', H)).
   o_of_n_bounds M C'.
   intros; apply (Nat.le_trans _ (C' * g M0)); auto.
-  rewrite Nat.mul_assoc.
-  apply mult_le_compat_r.
-  SearchAbout (_ <= _*_).
-  apply mul_lt_r; auto.
+  repeat fast_progress_le_goal.
 Qed.
-  
 
 Theorem O_mul_src : forall f g C, f ∈O g -> (fun k => C * f k) ∈O g.
 Proof.
@@ -203,7 +218,7 @@ Proof.
   o_of_n_bounds M (C * C').
   intros M0 leq.
   rewrite <- Nat.mul_assoc.
-  apply mult_le_compat; auto.
+  fast_progress_le_goal.
 Qed.
 
 
@@ -222,17 +237,15 @@ Proof.
   o_of_n_bounds k (n * f k).
   intros M le_k.
   apply (Nat.le_trans _ (n * f k * f k)).
-  repeat (apply mul_lt_r; auto).
-  apply mult_le_compat_l.
-  auto.
+  repeat (apply mul_le_r; auto).
+  fast_progress_le_goal.
 Qed.
-  
+
 Theorem O_const_add_r : forall f g n, f ∈O g -> f ∈O (fun k => g k + n).
 Proof.
   intros f g n (M, (C, H)).
   o_of_n_bounds M C.
   intros M0 leq.
-  SearchAbout (_ * (_ + _)).
   rewrite Nat.mul_add_distr_l.
   auto with arith.
 Qed.
@@ -275,20 +288,16 @@ Proof.
       + subst n; rewrite <- eqM.
         assert (H3: f (M / 2) <= f 1 * (M / 2)).
         apply IH.
-        Search (_/_ < _).
-        apply Nat.div_lt; auto with arith.
-        apply (Nat.le_trans _ (2/2)).
-        auto with arith.
-        SearchAbout (_ <= _ / _).
-        apply Nat.div_le_mono; auto with arith.
+        fast_progress_le_goal.
+        apply (Nat.le_trans _ (2/2)); auto with arith.
+        fast_progress_le_goal.
 
         rewrite H1.
         apply (Nat.le_trans _ (2 * (f 1 * (M/2)))).
         now auto with arith.
 
         replace (2 * (f 1 * (M / 2))) with (f 1 * (2 * (M/2))) by ring.
-        apply mult_le_compat_l.
-        apply Nat.mul_div_le; now auto.
+        repeat fast_progress_le_goal.
 Qed.
 
 
@@ -298,8 +307,8 @@ Proof.
   o_of_n_bounds 1 1.
   intros M M_bound.
   replace (1 * M ^ m) with (M ^ m) by auto with arith.
-  SearchAbout (_^_ <= _^_).
-  apply Nat.pow_le_mono_r; auto with arith; omega.
+  fast_progress_le_goal.
+  omega.
 Qed.
 
 Print Nat.log2.
@@ -319,16 +328,23 @@ Proof.
   (* idk_bounds ?[n] ?[C]. *)
   eexists ?[n].
   eexists ?[C].
-  intros M m.
   induction M as (M, IH) using lt_wf_ind.
+  intro M_large_enough.
   unfold ValRel in f_eqn; simpl in f_eqn.
   rewrite f_eqn.
   specialize IH with (m:= M/2).
   eapply (Nat.le_trans _ (a * (?C * (M / 2) ^ Nat.log2_up a) + g M)).
-  (* This really needs to be a tactic *)
-  apply plus_le_compat_r.
-  apply mult_le_compat_l.
-  apply IH; auto with arith.
+
+  Focus 2.
+  SearchAbout (_ ^ (Nat.log2_up _)).
+  induction a; simpl.
+    
+  - repeat fast_progress_le_goal.
+  apply IH.
+    * SearchAbout (_ / _ < _).
+      apply Nat.div_lt_upper_bound; auto with arith.
+
+
   (* assert (H : (f (M/2) <= ?C * (M/2) ^ Nat.log2_up a)). *)
   
 Admitted.
