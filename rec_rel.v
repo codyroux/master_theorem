@@ -25,11 +25,11 @@ Print Rel.
 
 Coercion Const : nat >-> Expr.
 
-Notation "e1 +E e2" := (Sum e1 e2)(at level 20).
-Notation "e1 *E e2" := (Mul e1 e2)(at level 20).
-Notation "e1 /E e2" := (Div e1 e2)(at level 20).
-Notation "f @E e"   := (Fun f e)(at level 19).
-
+Notation "e1 <+> e2" := (Sum e1 e2)(at level 20).
+Notation "e1 <*> e2" := (Mul e1 e2)(at level 20).
+Notation "e1 </> e2" := (Div e1 e2)(at level 20).
+Notation "f <@> e"   := (Fun f e)(at level 19).
+Notation "<n>"       := Var.
 
 Check (_/_).
 Search (_/_).
@@ -40,13 +40,13 @@ Search Nat.divmod.
 
 Fixpoint Interp (e : Expr) (f : nat -> nat) (n : nat) : nat :=
   match e with
-      | Var => n
+      | <n> => n
       | T e' => f (Interp e' f n)
       | Const m => m
-      | e1 +E e2 => (Interp e1 f n) + (Interp e2 f n)
-      | e1 *E e2 => (Interp e1 f n) * (Interp e2 f n)
-      | e1 /E e2 => (Interp e1 f n) / (Interp e2 f n)
-      | g @E e  => g (Interp e f n)
+      | e1 <+> e2 => (Interp e1 f n) + (Interp e2 f n)
+      | e1 <*> e2 => (Interp e1 f n) * (Interp e2 f n)
+      | e1 </> e2 => (Interp e1 f n) / (Interp e2 f n)
+      | g <@> e  => g (Interp e f n)
   end.
 
 Notation "[[ e ]]" := (Interp e).
@@ -59,7 +59,7 @@ Notation "l :== r" := (Build_Rel l r)(at level 30).
 
 Opaque Nat.div.
 
-Lemma test_lemma : forall f, ValRel (T Var :== T ((Var *E 2) /E 2)) f.
+Lemma test_lemma : forall f, ValRel (T <n> :== T ((<n> <*> 2) </> 2)) f.
 Proof.
   unfold ValRel; intros; simpl Interp.
   
@@ -69,7 +69,7 @@ Proof.
 Qed.
 
 
-Lemma test2 : ValRel (T Var :== 2 *E (T (Var /E 2))) (fun n => n).
+Lemma test2 : ValRel (T <n> :== 2 <*> (T (<n> </> 2))) (fun n => n).
 Proof.
   unfold ValRel; intros; simpl Interp.
 Abort.
@@ -267,7 +267,7 @@ Qed.
 SearchAbout (_ * (_ / _) <= _).
 
 
-Theorem O_id : forall f, ValRel (T Var :== 2 *E (T (Var /E 2))) f ->
+Theorem O_id : forall f, ValRel (T <n> :== 2 <*> (T (<n> </> 2))) f ->
                          f ∈O (fun n => n).
 Proof.
   Opaque Nat.mul.
@@ -318,9 +318,52 @@ SearchAbout (_^_).
 SearchAbout Nat.log2_up.
 Print Nat.log2_up.
 
+Print Nat.log2_up.
+
+Require Import FunInd.
+
+Functional Scheme log2_up_ind := Induction for Nat.log2_up Sort Prop.
+
+Check log2_up_ind.
+
+
+SearchAbout (_^(Nat.log2_up _)).
+
+Lemma exp_log2_up : forall a, 0 < a -> a <= 2 ^ Nat.log2_up a.
+Proof.
+  intros; apply Nat.log2_log2_up_spec; auto.
+Qed.
+
+SearchAbout ((_^_)*(_^_)).
+Check Nat.pow_mul_l.
+
+SearchAbout (_^_ <= _^_).
+Check Nat.pow_le_mono_l.
+
+SearchAbout (_*_ <= _*_).
+Check Nat.mul_le_mono_r.
+
+SearchAbout (_*(_/_)).
+Check Nat.mul_div_le.
+
+
+Lemma log_2_div : forall a b, 0 < a ->
+                              a * (b/2)^(Nat.log2_up a) <= b^(Nat.log2_up a).
+Proof.
+  intros a b a_nz.
+  etransitivity.
+  eapply Nat.mul_le_mono_r.
+  apply exp_log2_up; auto.
+  rewrite <- Nat.pow_mul_l.
+  apply Nat.pow_le_mono_l.
+  apply Nat.mul_div_le; auto.
+Qed.
+
+
+  
 Lemma baby_master_theorem_1 : forall g f a n,
     n < Nat.log2 a ->
-    ValRel (T Var :== a *E (T (Var /E 2)) +E (g @E Var)) f
+    ValRel (T <n> :== a <*> (T (<n> </> 2)) <+> (g <@> <n>)) f
     -> g ∈O (fun k => k ^ n)
     -> f ∈O (fun k => k ^ (Nat.log2_up a)).
 Proof.
@@ -335,15 +378,19 @@ Proof.
   specialize IH with (m:= M/2).
   eapply (Nat.le_trans _ (a * (?C * (M / 2) ^ Nat.log2_up a) + g M)).
 
-  Focus 2.
-  SearchAbout (_ ^ (Nat.log2_up _)).
-  induction a; simpl.
-    
-  - repeat fast_progress_le_goal.
-  apply IH.
-    * SearchAbout (_ / _ < _).
-      apply Nat.div_lt_upper_bound; auto with arith.
 
+  -  fast_progress_le_goal.
+  
+  (* Focus 2. *)
+  (* SearchAbout (_ ^ (Nat.log2_up _)). *)
+  (* induction a; simpl. *)
+    
+  (* - fast_progress_le_goal. *)
+  (*   repeat fast_progress_le_goal. *)
+  (*   apply IH. *)
+  (*   * SearchAbout (_ / _ < _). *)
+  (*     apply Nat.div_lt_upper_bound; auto with arith. *)
+      
 
   (* assert (H : (f (M/2) <= ?C * (M/2) ^ Nat.log2_up a)). *)
   
@@ -356,7 +403,7 @@ Variable log_up : nat -> nat -> nat.
 (* To express this, we need a log_b a function and a log_b_up one! *)
 Theorem master_theorem_1 : forall g f a b n,
     n < log b a ->
-    ValRel (T Var :== a *E (T (Var /E b)) +E (g @E Var)) f
+    ValRel (T <n> :== a <*> (T (<n> </> b)) <+> (g <@> <n>)) f
     -> g ∈O (fun k => k ^ n)
     -> f ∈O (fun k => k ^ (log_up b a)).
 Proof.
