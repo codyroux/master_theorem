@@ -359,8 +359,9 @@ Proof.
   apply Nat.mul_div_le; auto.
 Qed.
 
+Axiom I_GIVE_UP : forall {P}, P.
 
-  
+
 Lemma baby_master_theorem_1 : forall g f a n,
     n < Nat.log2 a ->
     ValRel (T <n> :== a <*> (T (<n> </> 2)) <+> (g <@> <n>)) f
@@ -379,7 +380,12 @@ Proof.
   eapply (Nat.le_trans _ (a * (?C * (M / 2) ^ Nat.log2_up a) + g M)).
 
 
-  -  fast_progress_le_goal.
+  -  repeat fast_progress_le_goal.
+     apply IH.
+     apply I_GIVE_UP.
+     apply I_GIVE_UP.
+  - Check log_2_div.
+    apply log_2_div.
   
   (* Focus 2. *)
   (* SearchAbout (_ ^ (Nat.log2_up _)). *)
