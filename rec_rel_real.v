@@ -3,6 +3,7 @@ Require Import Fourier.
 Require Import Psatz.
 Require Import Lra.
 
+
 Module RecRel.
 
 (*
@@ -48,7 +49,7 @@ SearchAbout (up _).
 SearchAbout (Int_part _).
 SearchAbout (INR _).
 
-Definition down (x : R) := ((up x) - 1)%Z.
+Definition down (x : R) : Z := ((up x) - 1)%Z.
 
 
 Fixpoint Interp (e : Expr) (f : Z -> R) (n : Z) : R :=
@@ -80,11 +81,52 @@ Proof.
 Qed.
 
 
-Lemma test2 : ValRel (Tu <n> :== 2 <*> (Tu (<n> </> 2))) (fun n => IZR n).
+Lemma down_leq_up : forall x y : R, x <= y -> IZR (down x) <= IZR (up y).
+Proof.
+  intros.
+  unfold down.
+  SearchAbout (IZR _ - _).
+  rewrite minus_IZR.
+  SearchAbout (IZR _ - _ <= _).
+  pose (Hx := for_base_fp x).
+  destruct Hx.
+  assert (IZR (up x) <= x + 1) by lra.
+  SearchAbout (_ <= _ -> _ <= _ -> _ <= _).
+  eapply Rle_trans with (r2 := x); try lra.
+  pose (Hy := for_base_fp y); destruct Hy.
+  lra.
+Qed.
+
+Lemma eq_up_mul : forall n x, IZR n * (IZR (up x)) = IZR (n * up x).
+Proof.
+  intros.
+                                 
+  Print IZR.
+  rewrite <- mult_IZR; auto.
+Qed.
+
+Lemma eq_up_IZR : forall n, IZR (up (IZR n)) = (IZR n) + 1.
+Proof.
+  intros.
+  (* Set Printing All. *)
+  rewrite <- plus_IZR.
+  apply f_equal.
+  symmetry.
+  SearchAbout up.
+  apply tech_up.
+  - rewrite plus_IZR; lra.
+  - rewrite plus_IZR; lra.
+Qed.
+  
+
+Lemma test2 : ValRel (Td <n> :== 2 <*> (Tu (<n> </> 2))) (fun n => IZR n).
 Proof.
   unfold ValRel; intros; simpl Interp.
-  SearchAbout (IZR _).
-  SearchAbout (up _).
+  unfold down.
+  rewrite minus_IZR.
+  rewrite eq_up_IZR.
+  ring_simplify.
+  pose (Hdiv := for_base_fp (IZR n / 2)); destruct Hdiv.
   lra.
 Qed.
 
@@ -93,15 +135,15 @@ Qed.
 We use the most straightforward definition here,
 we'll amend it later if needed.
 *)
-Definition O (f : R -> R) (g : R -> R) : Prop :=
-  exists n, exists C, 0 <= n /\ 0 <= C /\ forall M, n <= M -> g M <= C * (f M).
+Definition O (f : Z -> R) (g : Z -> R) : Prop :=
+  exists n, exists C, 0 <= IZR n /\ 0 <= C /\ forall M, IZR n <= IZR M -> g M <= C * (f M).
 
 (*This notation is the worst *)
 Notation "g ∈O a":= (O a g)(at level 10).
 
-Ltac trivial_bounds := exists 0; exists 1; split; [|split]; try lra.
+Ltac trivial_bounds := exists 0%Z; exists 1; split; [|split]; try lra.
 
-Ltac o_of_n_bounds n C := exists n; exists C; split; [|split]; try lra.
+Ltac o_of_n_bounds n C := exists n%Z; exists C; split; [|split]; try lra.
 
 Ltac idk_bounds := eexists; eexists; split; [|split]; try lra.
 
@@ -145,11 +187,9 @@ Qed.
 (*                             end); fast_progress_le_goal. *)
 
 
-Lemma n_O_of_n_squared : (fun n => n) ∈O (fun n => n * n).
+Lemma n_O_of_n_squared : (fun n => IZR n) ∈O (fun n => IZR n * IZR n).
 Proof.
-  o_of_n_bounds 1 1.
-  intros.
-  nra.
+  o_of_n_bounds 1%Z 1; intros; nra.
 Qed.
 
 Theorem O_refl : forall f, f ∈O f.
@@ -158,10 +198,16 @@ Proof.
   intros; lra.
 Qed.
 
+Lemma max_IZR : forall n m, IZR (Z.max n m) = Rmax (IZR n) (IZR m).
+Proof.
+  intros.
+  SearchAbout (IZR _ <= _).
+  Check IZR_le.
+
 Theorem O_trans : forall f g h, f ∈O g -> g ∈O h -> f ∈O h.
 Proof.
   intros f g h (M1, (C1, H1)) (M2, (C2, H2)).
-  o_of_n_bounds (Rmax M1 M2) (C1 * C2);
+  o_of_n_bounds (Z.max M1 M2) (C1 * C2);
   destruct H1 as (H11, (H12, H1));
   destruct H2 as (H21, (H22,H2)).
   - eapply Rle_trans. apply Rmax_r.
