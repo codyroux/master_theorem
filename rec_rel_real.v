@@ -45,7 +45,7 @@ Search (R -> Z).
 
 Search (Z -> nat).
 
-SearchAbout (up _).
+SearchAbout (up _). (* up x is the the int upper bound of x, except when x is an int, in which case it's x + 1. *)
 SearchAbout (Int_part _).
 SearchAbout (INR _).
 
@@ -132,13 +132,12 @@ Qed.
 
 
 (*
-We use the most straightforward definition here,
-we'll amend it later if needed.
-*)
+We use the most straightforward definition here, we'll amend it later if needed.
+ *)
 Definition O (f : Z -> R) (g : Z -> R) : Prop :=
   exists n, exists C, 0 <= IZR n /\ 0 <= C /\ forall M, IZR n <= IZR M -> g M <= C * (f M).
 
-(*This notation is the worst *)
+(*This notation is the worst, but I can't quite figure out how to make it better. *)
 Notation "g ∈O a":= (O a g)(at level 10).
 
 Ltac trivial_bounds := exists 0%Z; exists 1; split; [|split]; try lra.
@@ -147,21 +146,6 @@ Ltac o_of_n_bounds n C := exists n%Z; exists C; split; [|split]; try lra.
 
 Ltac idk_bounds := eexists; eexists; split; [|split]; try lra.
 
-(* SearchAbout ( _ <= _ * _ ). *)
-
-(* Ltac fast_progress_le_goal := match goal with *)
-(*                          | [|- _ * _ <= _ * _] => apply Rmult_le_compat_l *)
-(*                          | [|- _ * _ <= _ * _] => apply Rmult_le_compat_r *)
-(*                          | [|- _ + _ <= _ + _] => apply Rplus_le_compat_l *)
-(*                          | [|- _ + _ <= _ + _] => apply Rplus_le_compat_r *)
-(*                          (* | [|- ?X / _ < ?X]    => apply Nat.div_lt *) *)
-(*                          | [|- / ?X <= / ?X]   => apply Rle_Rinv *)
-(*                          (* | [|- ?X * (?Y / ?X) <= ?Y] => apply Nat.mul_div_le *) *)
-(*                          | [|- _ ^ ?X <= _ ^ ?X] => apply pow_incr *)
-(*                          | [|- ?X ^ _ <= ?X ^ _] => apply Rle_pow *)
-(*                          (* | [|- _ <= _ * _]     => apply mul_le_r; now auto with arith *) *)
-(*                          (* | [|- _ <= _ * _]     => apply mul_le_l; now auto with arith *) *)
-(*                          end; lra. *)
 
 
 SearchAbout ( Rmax _ _ <= _).
@@ -201,8 +185,19 @@ Qed.
 Lemma max_IZR : forall n m, IZR (Z.max n m) = Rmax (IZR n) (IZR m).
 Proof.
   intros.
-  SearchAbout (IZR _ <= _).
-  Check IZR_le.
+  SearchAbout ((_ <= _)%Z \/ (_ <= _)%Z).
+  SearchAbout (Z.max _ _ = _).
+  SearchAbout (IZR _ <= IZR _).
+  SearchAbout (Rmax _ _ = _).
+  destruct (Z.le_ge_cases n m) as [H1 | H2].
+  - assert (IZR n <= IZR m) by apply (IZR_le _ _ H1).
+    rewrite Rmax_right; auto.
+    rewrite Z.max_r; now auto.
+    
+  - assert (IZR m <= IZR n) by apply (IZR_le _ _ H2).
+    rewrite Rmax_left; auto.
+    rewrite Z.max_l; now auto.
+Qed.
 
 Theorem O_trans : forall f g h, f ∈O g -> g ∈O h -> f ∈O h.
 Proof.
@@ -210,41 +205,44 @@ Proof.
   o_of_n_bounds (Z.max M1 M2) (C1 * C2);
   destruct H1 as (H11, (H12, H1));
   destruct H2 as (H21, (H22,H2)).
-  - eapply Rle_trans. apply Rmax_r.
-    apply Rle_max_compat_l; auto.
+  - rewrite max_IZR.
+    eapply Rle_trans. apply Rmax_r.
+    apply Rle_max_compat_l; now auto.
 
   - nra.
   
   - intros M le.
     assert (f M <= C1 * g M).
     + apply H1.
-      unfold Rmax in *.
-      destruct (Rle_dec M1 M2); lra.
+      rewrite max_IZR in *.
+      eapply Rmax_split_l; now eauto.
 
     + assert (g M <= C2 * h M).
       apply H2.
-      unfold Rmax in *.
-      destruct (Rle_dec M1 M2); lra.
-      nra.
+      * rewrite max_IZR in *.
+        eapply Rmax_split_r; now eauto.
+      * nra.
 Qed.
 
 
 Theorem O_add_idempot : forall f g h, f ∈O (fun n => g n + h n) -> h ∈O g -> f ∈O g.
 Proof.
   intros f g h (M1, (C1, H1)) (M2, (C2, H2)).
-  o_of_n_bounds (Rmax M1 M2) (C1 + C1*C2);
+  o_of_n_bounds (Z.max M1 M2) (C1 + C1*C2);
     destruct H1 as (H11, (H12, H1));
     destruct H2 as (H21, (H22,H2)).
 
-  - eapply Rle_trans. apply Rmax_r.
-    apply Rle_max_compat_l; auto.
+  - rewrite max_IZR.
+    eapply Rle_trans. apply Rmax_r.
+    apply Rle_max_compat_l; now auto.
 
   - nra.
 
   - intros M max_rel.
     rewrite Rmult_plus_distr_r.
     eapply Rle_trans.
-    + apply H1; unfold Rmax in *; destruct (Rle_dec M1 M2); lra.
+    + SearchAbout (Rmax _ _ <= _ -> _).
+      apply H1; rewrite max_IZR in *; eapply Rmax_split_l; eauto.
     + rewrite Rmult_plus_distr_l.
       SearchAbout (_+_<=_+_).
       apply Rplus_le_compat; try lra.
@@ -252,15 +250,15 @@ Proof.
       rewrite Rmult_assoc.
       apply Rmult_le_compat_l; try lra.
       apply H2.
-      unfold Rmax in *; destruct (Rle_dec M1 M2); lra.
+      rewrite max_IZR in *; eapply Rmax_split_r; now eauto.
 Qed.
 
 
-Definition monotone f := forall x y, x <= y -> f x <= f y.
+Definition monotone f := forall n m : Z, (n <= m)%Z -> f n <= f m.
 
-Definition non_zero f := exists k:R, f k > 0.
+Definition non_zero f := exists k:Z, f k > 0.
 
-Definition positive f := forall x:R, 0 <= f x.
+Definition positive f := forall k:Z, 0 <= f k.
 
 Theorem O_mul_hyp : forall f g C, 0 <= C -> f ∈O (fun k => C * g k) -> f ∈O g.
 Proof.
@@ -313,17 +311,20 @@ Theorem O_const : forall f c, 0 <= c -> monotone f -> non_zero f -> (fun _ => c)
 Proof.
   intros f c c_pos mon non_zero.
   destruct non_zero as (k, k_n_z).
-  o_of_n_bounds (Rmax k 1) (c * / f (Rmax k 1)).
-  - unfold Rmax.
-    destruct (Rle_dec k 1); lra.
-  - unfold Rmax; destruct (Rle_dec k 1).
-    unfold monotone in mon.
-    assert (f k <= f 1) by (apply mon; lra).
-    SearchAbout (0 < / _).
+  o_of_n_bounds (Z.max k 1) (c * / f (Z.max k 1)).
+  - rewrite max_IZR.
+    SearchAbout (_ <= Rmax _ _).
+    generalize (Rmax_r (IZR k) 1); lra.
+  - SearchAbout (Z.max _ _).
+    destruct (Z.le_ge_cases k 1) as [H1 | H2].
+    + rewrite Z.max_r; auto.
+    assert (f k <= f 1%Z) by (apply mon; lia).
     apply Rmult_le_pos; auto.
     apply Rlt_le.
     apply Rinv_0_lt_compat.
     lra.
+
+    + rewrite Z.max_l; auto.
     apply Rmult_le_pos; auto.
     apply Rlt_le.
     apply Rinv_0_lt_compat.
@@ -335,22 +336,24 @@ Proof.
     replace c with (c * 1) by ring.
     apply Rmult_le_compat_l; auto.
     pattern 1 at 1.
-    replace 1 with (/ f (Rmax k 1) * f (Rmax k 1)); try apply Rinv_l.
+    replace 1 with (/ f (Z.max k 1) * f (Z.max k 1)); try apply Rinv_l.
     + apply Rmult_le_compat_l.
-      unfold Rmax.
-      destruct (Rle_dec k 1).
-      apply Rlt_le.
-      apply Rinv_0_lt_compat.
-      unfold monotone in mon.
-      generalize (mon k 1); intros.
-      lra.
-      apply Rlt_le; apply Rinv_0_lt_compat; auto.
-      apply mon; auto.
+
+      -- destruct (Z.le_ge_cases k 1) as [H1 | H2]; [|rewrite Z.max_l; now auto; apply Rlt_le; apply Rinv_0_lt_compat; now auto].
+         rewrite Z.max_r; auto.
+            apply Rlt_le; apply Rinv_0_lt_compat; auto.
+            
+            assert (f k <= f 1%Z) by (apply mon; lia).
+            SearchAbout (_ <  _ -> _ <= _ -> _ < _).
+            eapply Rlt_le_trans with (r2 := f k); auto.
+
+      -- apply mon; apply le_IZR; auto.
+
     + apply Rgt_not_eq.
-      generalize (mon k (Rmax k 1)); intros.
-      SearchAbout (_ <= Rmax _ _).
-      assert (k <= Rmax k 1) by apply Rmax_l.
-      lra.
+      destruct (Z.le_ge_cases k 1) as [H1 | H2]; [rewrite Z.max_r; auto |rewrite Z.max_l; now auto].
+      
+      assert (f k <= f 1%Z) by (apply mon; lia).
+      eapply Rlt_le_trans with (r2 := f k); now auto.
 Qed.
         
 
@@ -377,16 +380,65 @@ Proof.
 Qed.
 
 
+Lemma as_up : forall k, exists l, k = up (IZR l).
+Proof.
+  SearchAbout (_ = up _).
+  intros.
+  exists (k - 1)%Z.
+  apply tech_up.
+  - rewrite minus_IZR; lra.
+  - rewrite minus_IZR; lra.
+Qed.
+
+Lemma rewrite_leq : forall H : R -> Prop, (forall x y, (x <= y) -> H x -> H y) -> forall y x, (x <= y) -> H x -> H y.
+Proof.
+  firstorder.
+Qed.
+
 Theorem O_id : forall f, positive f ->
                          monotone f ->
-                         ValRel (T <n> :== 2 <*> (T (<n> </> 2))) f ->
-                         f ∈O (fun n => n).
+                         ValRel (Tu <n> :== 2 <*> (Td (<n> </> 2))) f ->
+                         f ∈O (fun n => IZR n).
 Proof.
   unfold ValRel; simpl.
   intros f pos mon eqn.
-  o_of_n_bounds 1 (f 1).
-  apply pos.
-  intros M geq.
+  o_of_n_bounds 1%Z (f 1%Z).
+  - apply pos.
+  - intros M lt.
+    (* A little set up to be able to apply Wf_Z.Zlt_lower_bound_rec *)
+    destruct (Z.le_gt_cases 1 M); [|assert (IZR M < 1); try (apply IZR_lt); auto; try lra].
+    generalize H.
+    (* Apply general well-founded induction *)
+    Check Wf_Z.Zlt_lower_bound_rec.
+    pattern M.
+    eapply Wf_Z.Zlt_lower_bound_rec with (z := 1%Z); eauto.
+    intros k IH lt1 lt2.
+    destruct (as_up k) as [L L_eq].
+    rewrite L_eq in *.
+    eapply Rle_trans.
+    apply eqn.
+    (* This is incorrect, need to get y := down (IZR L / 2) maybe? *)
+    (* eapply Rle_trans; [| apply IH; try lra; auto]. *)
+
+    assert (H0 : 0 <= f (down (IZR L / 2))) by apply pos.
+    generalize H0.
+    pattern (f (down (IZR L / 2))).
+    fail.
+    
+    apply rewrite_leq with (x := (f 1%Z * IZR (down (IZR L / 2)))).
+    ; [intros; eapply Rmult_le_compat; try lra | |].
+    SearchAbout (_ * _ <= _).
+    apply Rmult_le_compat_l; try lra.
+
+    SearchAbout (_ <= _).
+    apply Rle_refl.
+    
+    reflexivity.
+    
+    
+    generalize (IH (down (IZR L / 2))).
+    clear IH; intro IH.
+    
   (* need a lemma on monotonicity here? *)
   
   (* Opaque Nat.mul. *)
