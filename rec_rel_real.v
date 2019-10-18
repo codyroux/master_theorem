@@ -380,7 +380,7 @@ Proof.
 Qed.
 
 
-Lemma as_up : forall k, exists l, k = up (IZR l).
+Lemma as_up : forall k : Z, exists l : Z, k = up (IZR l).
 Proof.
   SearchAbout (_ = up _).
   intros.
@@ -390,10 +390,30 @@ Proof.
   - rewrite minus_IZR; lra.
 Qed.
 
-Lemma rewrite_leq : forall H : R -> Prop, (forall x y, (x <= y) -> H x -> H y) -> forall y x, (x <= y) -> H x -> H y.
+Lemma rewrite_geq : forall H : R -> Prop, (forall x y, (y <= x) -> H x -> H y) -> forall x y, (y <= x) -> H x -> H y.
 Proof.
   firstorder.
 Qed.
+
+(* Tough! *)
+Lemma down_pos : forall x : R, 0 <= x -> (0 <= (down x))%Z.
+Proof.
+  intros.
+  unfold down.
+  SearchAbout (up _).
+  pose (H1 := archimed x); destruct H1 as [H1 H2].
+  case_eq (up x); intros.
+  - rewrite H0 in *; nra.
+  - lia.
+  - rewrite H0 in *.
+    exfalso.
+    assert (IZR (Z.neg p) < 0) by (apply IZR_lt; lia).
+    lra.
+Qed.
+  
+Lemma div_down : forall x y, 0 < y -> IZR (down (x / y)) <= (IZR (down x)) / y.
+Abort.
+
 
 Theorem O_id : forall f, positive f ->
                          monotone f ->
@@ -406,7 +426,7 @@ Proof.
   - apply pos.
   - intros M lt.
     (* A little set up to be able to apply Wf_Z.Zlt_lower_bound_rec *)
-    destruct (Z.le_gt_cases 1 M); [|assert (IZR M < 1); try (apply IZR_lt); auto; try lra].
+    destruct (Z.le_gt_cases 1 M); [|assert (IZR M < 1); try (apply IZR_lt); auto; try lra; now trivial].
     generalize H.
     (* Apply general well-founded induction *)
     Check Wf_Z.Zlt_lower_bound_rec.
@@ -414,61 +434,30 @@ Proof.
     eapply Wf_Z.Zlt_lower_bound_rec with (z := 1%Z); eauto.
     intros k IH lt1 lt2.
     destruct (as_up k) as [L L_eq].
-    rewrite L_eq in *.
+    rewrite L_eq.
     eapply Rle_trans.
     apply eqn.
-    (* This is incorrect, need to get y := down (IZR L / 2) maybe? *)
-    (* eapply Rle_trans; [| apply IH; try lra; auto]. *)
 
     assert (H0 : 0 <= f (down (IZR L / 2))) by apply pos.
     generalize H0.
+
+    (* A little tedious, but we need to exclude the case where down (IZR L / 2) is less than 1. *)
+    
+    
     pattern (f (down (IZR L / 2))).
-    fail.
-    
-    apply rewrite_leq with (x := (f 1%Z * IZR (down (IZR L / 2)))).
-    ; [intros; eapply Rmult_le_compat; try lra | |].
-    SearchAbout (_ * _ <= _).
-    apply Rmult_le_compat_l; try lra.
 
-    SearchAbout (_ <= _).
-    apply Rle_refl.
-    
-    reflexivity.
-    
-    
-    generalize (IH (down (IZR L / 2))).
-    clear IH; intro IH.
-    
-  (* need a lemma on monotonicity here? *)
-  
-  (* Opaque Nat.mul. *)
-  (* unfold ValRel; simpl. *)
-  (* intros f eqn. *)
-  (* o_of_n_bounds 1 (f 1). *)
-  (* intros M geq; simpl. *)
-  (* (* we need strong induction here *) *)
-  (* induction M as (M,IH) using lt_wf_ind. *)
-  (* case_eq M. *)
-  (* - omega. *)
-  (* - intros n eqM. *)
-  (*   case_eq n. *)
-  (*   * intros; omega. *)
-  (*   * intros m eq_m; assert (H1 := eqn M); clear eqn. *)
-  (*     assert (H2 : 1 < M). *)
-  (*     + subst n; rewrite eqM; auto with arith. *)
-  (*     + subst n; rewrite <- eqM. *)
-  (*       assert (H3: f (M / 2) <= f 1 * (M / 2)). *)
-  (*       apply IH. *)
-  (*       fast_progress_le_goal. *)
-  (*       apply (Nat.le_trans _ (2/2)); auto with arith. *)
-  (*       fast_progress_le_goal. *)
+    eapply rewrite_geq; [intros x y lxy Hx y_ge_0; now nra | apply IH | ].
 
-  (*       rewrite H1. *)
-  (*       apply (Nat.le_trans _ (2 * (f 1 * (M/2)))). *)
-  (*       now auto with arith. *)
+    + split; [apply down_pos|].
+      assert (0 <= IZR L) by (case L; auto).
+      
+      fail.
+    
 
-  (*       replace (2 * (f 1 * (M / 2))) with (f 1 * (2 * (M/2))) by ring. *)
-  (*       repeat fast_progress_le_goal. *)
+
+
+
+
 Qed.
 
 
