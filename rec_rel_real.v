@@ -311,63 +311,24 @@ Proof.
 Qed.
 
 
-Theorem O_id : forall f, positive f ->
-                         monotone f ->
-                         ValRel (Tu <n> :== 2 <*> (Td (<n> </> 2))) f ->
-                         f ∈O (fun n => IZR n).
-Proof.
-  unfold ValRel; simpl.
-  intros f pos mon eqn.
-  o_of_n_bounds 1%Z (f 1%Z).
-  - apply pos.
-  - intros M lt.
-    (* A little set up to be able to apply Wf_Z.Zlt_lower_bound_rec *)
-    destruct (Z.le_gt_cases 1 M); [|assert (IZR M < 1); try (apply IZR_lt); auto; try lra; now trivial].
-    generalize H.
-    (* Apply general well-founded induction *)
-    Check Wf_Z.Zlt_lower_bound_rec.
-    pattern M.
-    eapply Wf_Z.Zlt_lower_bound_rec with (z := 1%Z); eauto.
-    intros k IH lt1 lt2.
-    destruct (as_up k) as [L L_eq].
-    rewrite L_eq.
-    eapply Rle_trans.
-    apply eqn.
+Check ln.
 
-    assert (H0 : 0 <= f (down (IZR L / 2))) by apply pos.
-    generalize H0.
-
-    (* A little tedious, but we need to exclude the case where down (IZR L / 2) is less than 1. *)
-    
-    
-    pattern (f (down (IZR L / 2))).
-
-    eapply rewrite_geq; [intros x y lxy Hx y_ge_0; now nra | apply IH | ].
-
-    + split; [apply down_pos|].
-      assert (0 <= IZR L) by (case L; auto).
-      
-      fail.
-    
-
+Theorem master_simple : forall f, positive f ->
+                                  monotone f ->
+                                  ValRel (Tu <n> :== (2 <*> (Td (<n> </> 2))) <+> 1) f ->
+                                  f ∈O (fun n => IZR n * ln (IZR n)).
+Proof.   
+  fail.
 Qed.
 
 
 Theorem O_pow : forall n m, n <= m -> (fun k => k^n) ∈O (fun k => k^m).
 Proof.
-  (* intros n m leq. *)
-  (* o_of_n_bounds 1 1. *)
-  (* intros M M_bound. *)
-  (* replace (1 * M ^ m) with (M ^ m) by auto with arith. *)
-  (* fast_progress_le_goal. *)
-  (* omega. *)
+  fail.
 Qed.
 
 
-SearchAbout (_^_).
-
-Require Import FunInd.
-
+SearchAbout (_^R_).
 
 
 Axiom I_GIVE_UP : forall {P}, P.
@@ -382,6 +343,7 @@ Proof.
   
 Admitted.
 
+(* We can define this! *)
 Variable log : R -> R -> R.
 
 (* To express this, we need a log_b a function and a log_b_up one! *)
