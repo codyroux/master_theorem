@@ -2,6 +2,7 @@ Require Import Reals.
 Require Import Fourier.
 Require Import Psatz.
 Require Import Lra.
+Require Import utils.
 
 
 Module RecRel.
@@ -80,43 +81,6 @@ Proof.
   unfold Rdiv; rewrite Rinv_r_simpl_l; auto; lra.
 Qed.
 
-
-Lemma down_leq_up : forall x y : R, x <= y -> IZR (down x) <= IZR (up y).
-Proof.
-  intros.
-  unfold down.
-  SearchAbout (IZR _ - _).
-  rewrite minus_IZR.
-  SearchAbout (IZR _ - _ <= _).
-  pose (Hx := for_base_fp x).
-  destruct Hx.
-  assert (IZR (up x) <= x + 1) by lra.
-  SearchAbout (_ <= _ -> _ <= _ -> _ <= _).
-  eapply Rle_trans with (r2 := x); try lra.
-  pose (Hy := for_base_fp y); destruct Hy.
-  lra.
-Qed.
-
-Lemma eq_up_mul : forall n x, IZR n * (IZR (up x)) = IZR (n * up x).
-Proof.
-  intros.
-                                 
-  Print IZR.
-  rewrite <- mult_IZR; auto.
-Qed.
-
-Lemma eq_up_IZR : forall n, IZR (up (IZR n)) = (IZR n) + 1.
-Proof.
-  intros.
-  (* Set Printing All. *)
-  rewrite <- plus_IZR.
-  apply f_equal.
-  symmetry.
-  SearchAbout up.
-  apply tech_up.
-  - rewrite plus_IZR; lra.
-  - rewrite plus_IZR; lra.
-Qed.
   
 
 Lemma test2 : ValRel (Td <n> :== 2 <*> (Tu (<n> </> 2))) (fun n => IZR n).
@@ -148,29 +112,6 @@ Ltac idk_bounds := eexists; eexists; split; [|split]; try lra.
 
 
 
-SearchAbout ( Rmax _ _ <= _).
-
-SearchAbout ( _ <= _ -> _ <= _ -> _ <= _).
-
-Lemma Rmax_split_l : forall x y z, Rmax x y <= z -> x <= z.
-Proof.
-  intros x y z; unfold Rmax; case (Rle_dec x y); lra.
-Qed.
-
-Lemma Rmax_split_r : forall x y z, Rmax x y <= z -> y <= z.
-Proof.
-  intros x y z; unfold Rmax; case (Rle_dec x y); lra.
-Qed.
-
-
-
-(* Ltac progress_le_goal := try *)
-(*                            (match goal with *)
-(*                             | [_ : ((Rmax ?X _) <= _) |- ?X <= _ ] => eapply Rmax_split_l; lra *)
-(*                             | [_ : ((Rmax _ ?X) <= _) |- ?X <= _ ] => eapply Rmax_split_r; lra *)
-(*                             end); fast_progress_le_goal. *)
-
-
 Lemma n_O_of_n_squared : (fun n => IZR n) ∈O (fun n => IZR n * IZR n).
 Proof.
   o_of_n_bounds 1%Z 1; intros; nra.
@@ -182,22 +123,6 @@ Proof.
   intros; lra.
 Qed.
 
-Lemma max_IZR : forall n m, IZR (Z.max n m) = Rmax (IZR n) (IZR m).
-Proof.
-  intros.
-  SearchAbout ((_ <= _)%Z \/ (_ <= _)%Z).
-  SearchAbout (Z.max _ _ = _).
-  SearchAbout (IZR _ <= IZR _).
-  SearchAbout (Rmax _ _ = _).
-  destruct (Z.le_ge_cases n m) as [H1 | H2].
-  - assert (IZR n <= IZR m) by apply (IZR_le _ _ H1).
-    rewrite Rmax_right; auto.
-    rewrite Z.max_r; now auto.
-    
-  - assert (IZR m <= IZR n) by apply (IZR_le _ _ H2).
-    rewrite Rmax_left; auto.
-    rewrite Z.max_l; now auto.
-Qed.
 
 Theorem O_trans : forall f g h, f ∈O g -> g ∈O h -> f ∈O h.
 Proof.
@@ -380,39 +305,10 @@ Proof.
 Qed.
 
 
-Lemma as_up : forall k : Z, exists l : Z, k = up (IZR l).
-Proof.
-  SearchAbout (_ = up _).
-  intros.
-  exists (k - 1)%Z.
-  apply tech_up.
-  - rewrite minus_IZR; lra.
-  - rewrite minus_IZR; lra.
-Qed.
-
 Lemma rewrite_geq : forall H : R -> Prop, (forall x y, (y <= x) -> H x -> H y) -> forall x y, (y <= x) -> H x -> H y.
 Proof.
   firstorder.
 Qed.
-
-(* Tough! *)
-Lemma down_pos : forall x : R, 0 <= x -> (0 <= (down x))%Z.
-Proof.
-  intros.
-  unfold down.
-  SearchAbout (up _).
-  pose (H1 := archimed x); destruct H1 as [H1 H2].
-  case_eq (up x); intros.
-  - rewrite H0 in *; nra.
-  - lia.
-  - rewrite H0 in *.
-    exfalso.
-    assert (IZR (Z.neg p) < 0) by (apply IZR_lt; lia).
-    lra.
-Qed.
-  
-Lemma div_down : forall x y, 0 < y -> IZR (down (x / y)) <= (IZR (down x)) / y.
-Abort.
 
 
 Theorem O_id : forall f, positive f ->
@@ -454,10 +350,6 @@ Proof.
       fail.
     
 
-
-
-
-
 Qed.
 
 
@@ -471,53 +363,12 @@ Proof.
   (* omega. *)
 Qed.
 
-Print Nat.log2.
-Print Nat.log2_iter.
 
 SearchAbout (_^_).
-SearchAbout Nat.log2_up.
-Print Nat.log2_up.
-
-Print Nat.log2_up.
 
 Require Import FunInd.
 
-Functional Scheme log2_up_ind := Induction for Nat.log2_up Sort Prop.
 
-Check log2_up_ind.
-
-
-SearchAbout (_^(Nat.log2_up _)).
-
-Lemma exp_log2_up : forall a, 0 < a -> a <= 2 ^ Nat.log2_up a.
-Proof.
-  (* intros; apply Nat.log2_log2_up_spec; auto. *)
-Qed.
-
-SearchAbout ((_^_)*(_^_)).
-Check Nat.pow_mul_l.
-
-SearchAbout (_^_ <= _^_).
-Check Nat.pow_le_mono_l.
-
-SearchAbout (_*_ <= _*_).
-Check Nat.mul_le_mono_r.
-
-SearchAbout (_*(_/_)).
-Check Nat.mul_div_le.
-
-
-Lemma log_2_div : forall a b, 0 < a ->
-                              a * (b/2)^(Nat.log2_up a) <= b^(Nat.log2_up a).
-Proof.
-  (* intros a b a_nz. *)
-  (* etransitivity. *)
-  (* eapply Nat.mul_le_mono_r. *)
-  (* apply exp_log2_up; auto. *)
-  (* rewrite <- Nat.pow_mul_l. *)
-  (* apply Nat.pow_le_mono_l. *)
-  (* apply Nat.mul_div_le; auto. *)
-Qed.
 
 Axiom I_GIVE_UP : forall {P}, P.
 
@@ -528,49 +379,16 @@ Lemma baby_master_theorem_1 : forall g f a n,
     -> g ∈O (fun k => k ^ n)
     -> f ∈O (fun k => k ^ (Nat.log2_up a)).
 Proof.
-  (* intros g f a n crit f_eqn g_o_n. *)
-  (* (* idk_bounds ?[n] ?[C]. *) *)
-  (* eexists ?[n]. *)
-  (* eexists ?[C]. *)
-  (* induction M as (M, IH) using lt_wf_ind. *)
-  (* intro M_large_enough. *)
-  (* unfold ValRel in f_eqn; simpl in f_eqn. *)
-  (* rewrite f_eqn. *)
-  (* specialize IH with (m:= M/2). *)
-  (* eapply (Nat.le_trans _ (a * (?C * (M / 2) ^ Nat.log2_up a) + g M)). *)
-
-
-  (* -  repeat fast_progress_le_goal. *)
-  (*    apply IH. *)
-  (*    apply I_GIVE_UP. *)
-  (*    apply I_GIVE_UP. *)
-  (* - Check log_2_div. *)
-  (*   apply log_2_div. *)
-  
-  (* Focus 2. *)
-  (* SearchAbout (_ ^ (Nat.log2_up _)). *)
-  (* induction a; simpl. *)
-    
-  (* - fast_progress_le_goal. *)
-  (*   repeat fast_progress_le_goal. *)
-  (*   apply IH. *)
-  (*   * SearchAbout (_ / _ < _). *)
-  (*     apply Nat.div_lt_upper_bound; auto with arith. *)
-      
-
-  (* assert (H : (f (M/2) <= ?C * (M/2) ^ Nat.log2_up a)). *)
   
 Admitted.
 
-Variable log : nat -> nat -> nat.
-
-Variable log_up : nat -> nat -> nat.
+Variable log : R -> R -> R.
 
 (* To express this, we need a log_b a function and a log_b_up one! *)
 Theorem master_theorem_1 : forall g f a b n,
     n < log b a ->
     ValRel (T <n> :== a <*> (T (<n> </> b)) <+> (g <@> <n>)) f
     -> g ∈O (fun k => k ^ n)
-    -> f ∈O (fun k => k ^ (log_up b a)).
+    -> f ∈O (fun k => k ^ (log b a)).
 Proof.
 Admitted.
