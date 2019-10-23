@@ -23,7 +23,7 @@ Qed.
 (* Convenient caracterization of down *)
 Lemma tech_down : forall r n, IZR n <= r -> r - 1 < IZR n -> n = down r.
 Proof.
-  intros.
+  intros r n H H0.
   generalize (down_fund r).
   intros [H1 H2].
   assert (IZR (down r) - IZR n < 1) by lra.
@@ -42,25 +42,31 @@ Definition up (x : R) : Z := - (down (- x)).
 Theorem up_fund : forall r : R, r <= IZR (up r) /\ IZR (up r) - r < 1.
 Proof.
   intro r.
-  fail.
+  unfold up.
+  generalize (down_fund (- r)).
+  intros [H1 H2].
+  SearchAbout (IZR (- _)).
+  rewrite opp_IZR.
+  split; lra.
+Qed.
 
-Check for_base_fp.
+Lemma tech_up : forall r n, r <= IZR n -> IZR n < r + 1 -> n = up r.
+Proof.
+  intros r n H H0.
+  generalize (up_fund r).
+  intros [H1 H2].
+  assert (IZR (up r) - IZR n < 1) by lra.
+  assert ((up r) - n < 1)%Z
+    by (apply lt_IZR; rewrite minus_IZR; auto).
+  assert (n - (up r) < 1)%Z by
+      (apply lt_IZR; rewrite minus_IZR; lra).
+  lia.
+Qed.
 
-SearchAbout (up _).
 
 Lemma down_leq_up : forall x y : R, x <= y -> IZR (down x) <= IZR (up y).
 Proof.
-  intros.
-  unfold down.
-  SearchAbout (IZR _ - _).
-  rewrite minus_IZR.
-  SearchAbout (IZR _ - _ <= _).
-  pose (Hx := for_base_fp x).
-  destruct Hx.
-  assert (IZR (up x) <= x + 1) by lra.
-  SearchAbout (_ <= _ -> _ <= _ -> _ <= _).
-  eapply Rle_trans with (r2 := x); try lra.
-  pose (Hy := for_base_fp y); destruct Hy.
+  intros x y; generalize (down_fund x); generalize (up_fund y); intros [H1 H2] [H3 H4] H5.
   lra.
 Qed.
 
@@ -68,23 +74,16 @@ Qed.
 Lemma eq_up_mul : forall n x, IZR n * (IZR (up x)) = IZR (n * up x).
 Proof.
   intros.
-                                 
-  Print IZR.
   rewrite <- mult_IZR; auto.
 Qed.
 
 
-Lemma eq_up_IZR : forall n, IZR (up (IZR n)) = (IZR n) + 1.
+Lemma eq_up_IZR : forall n, IZR (up (IZR n)) = (IZR n).
 Proof.
   intros.
-  (* Set Printing All. *)
-  rewrite <- plus_IZR.
   apply f_equal.
   symmetry.
-  SearchAbout up.
-  apply tech_up.
-  - rewrite plus_IZR; lra.
-  - rewrite plus_IZR; lra.
+  apply tech_up; lra.
 Qed.
 
 
@@ -124,10 +123,8 @@ Lemma as_up : forall k : Z, exists l : Z, k = up (IZR l).
 Proof.
   SearchAbout (_ = up _).
   intros.
-  exists (k - 1)%Z.
-  apply tech_up.
-  - rewrite minus_IZR; lra.
-  - rewrite minus_IZR; lra.
+  exists k.
+  apply tech_up; lra.
 Qed.
 
 (* Tough! *)
@@ -137,7 +134,7 @@ Proof.
   unfold down.
   SearchAbout (up _).
   pose (H1 := archimed x); destruct H1 as [H1 H2].
-  case_eq (up x); intros.
+  case_eq (Rdefinitions.up x); intros.
   - rewrite H0 in *; nra.
   - lia.
   - rewrite H0 in *.
@@ -146,7 +143,12 @@ Proof.
     lra.
 Qed.
 
-  
+
 Lemma div_down : forall x y, 0 < y -> IZR (down (x / y)) <= (IZR (down x)) / y.
+Proof.
+  intros x y pos_y.
+  generalize (down_fund (x / y)); intros [H1 H2].
+  generalize (down_fund x); intros [H3 H4].
+  (* fail. *)
 Abort.
 
