@@ -312,6 +312,30 @@ Check ln.
 
 Parameter C : R.
 Hypothesis C_pos : 0 <= C.
+(* We're gonna need some bounds for C, for now we punt *)
+Axiom I_GIVE_UP : forall {P}, P.
+
+
+Lemma ln_neg_0 : forall x, x <= 0 -> ln x = 0.
+Proof.
+  intros x; case_eq (Rlt_dec 0 x); intros.
+  - nra.
+  - unfold ln.
+    rewrite H; now auto.
+Qed.
+
+Lemma monotone_ln : forall x y, 0 < x -> 0 < y -> x <= y -> ln x <= ln y.
+Proof.
+  intros.
+  case (Rlt_dec x y); intros.
+  - SearchAbout (_ < _ -> _ <= _).
+    apply Rlt_le.
+    SearchAbout (_ < ln _).
+    apply ln_increasing; now auto.
+  - assert (x = y) by lra.
+    subst x; lra.
+Qed.
+
 
 Theorem master_simple : forall f, positive f ->
                                   monotone f ->
@@ -333,12 +357,34 @@ Proof.
   SearchAbout ((_ <= _)%Z \/ _).
   case (Z.le_gt_cases x 4); intros.
   - SearchAbout (_ -> IZR _ <= IZR _).
+    (* This is very tedious!!! *)
     assert (IZR x <= 4) by (apply IZR_le; auto).
     assert (IZR x / 2 <= 2) by lra.
     generalize (down_fund (IZR x / 2)); intros [Hd1 Hd2].
     generalize (up_fund (IZR x / 2)); intros [Hu1 Hu2].
-    Locate down.
-    (* assert (up (IZR x / 2) *)
+    assert (up (IZR x / 2) <= 3)%Z by (apply le_IZR; lra).
+    assert (down (IZR x / 2) <= 3)%Z by (apply le_IZR; lra).
+    assert (2 <= IZR x) by (apply IZR_le; auto).
+    SearchAbout (_ < ln _).
+    Check ln_lt_2.
+    assert (/2 <= ln (IZR x))
+      by (generalize (Rlt_le _ _ ln_lt_2); intro H5;
+          eapply Rle_trans; [exact H5| apply monotone_ln; lra]).
+    SearchAbout (_ -> _ * _ <= _ * _).
+    assert (C * (2 * / 2) <= C * (IZR x * ln (IZR x))) by
+        (apply Rmult_le_compat_l; [now (apply C_pos)  | nra]).
+    Check Rle_trans.
+    eapply Rle_trans; [| exact H6].
+    replace (C * (2 * / 2)) with C by nra.
+    (* TODO: FIX THIS *)
+    assert (2 * (f 3%Z) + 1 <= C) by (apply I_GIVE_UP).
+    eapply Rle_trans; [| exact H7].
+    SearchAbout (_ -> _ + _ <= _).
+    apply Rplus_le_compat_r.
+    assert (f (up (IZR x / 2)) + f (down (IZR x / 2)) <= f 3%Z + f 3%Z) by
+    (apply Rplus_le_compat; apply f_mon; apply le_IZR; lra).
+    lra.
+  -    
     fail.
 Qed.
 
@@ -351,8 +397,6 @@ Qed.
 
 SearchAbout (_^R_).
 
-
-Axiom I_GIVE_UP : forall {P}, P.
 
 
 Lemma baby_master_theorem_1 : forall g f a n,
