@@ -77,6 +77,15 @@ Proof.
   rewrite <- mult_IZR; auto.
 Qed.
 
+Lemma eq_down_add : forall (n : Z) (x : R), (down (IZR n + x) = n + down x)%Z.
+Proof.
+  intros n x.
+  symmetry.
+  generalize (down_fund (IZR n + x)); intros [H1 H2].
+  generalize (down_fund x); intros [H3 H4].
+  apply tech_down; rewrite plus_IZR; lra.
+Qed.
+
 Lemma eq_up_IZR : forall n, up (IZR n) = n.
 Proof.
   intros.

@@ -261,7 +261,8 @@ Proof.
     replace 1 with (/ f (Z.max k 1) * f (Z.max k 1)); try apply Rinv_l.
     + apply Rmult_le_compat_l.
 
-      -- destruct (Z.le_ge_cases k 1) as [H1 | H2]; [|rewrite Z.max_l; now auto; apply Rlt_le; apply Rinv_0_lt_compat; now auto].
+      -- destruct (Z.le_ge_cases k 1) as [H1 | H2];
+           [|rewrite Z.max_l; now auto; apply Rlt_le; apply Rinv_0_lt_compat; now auto].
          rewrite Z.max_r; auto.
             apply Rlt_le; apply Rinv_0_lt_compat; auto.
             
@@ -384,7 +385,78 @@ Proof.
     assert (f (up (IZR x / 2)) + f (down (IZR x / 2)) <= f 3%Z + f 3%Z) by
     (apply Rplus_le_compat; apply f_mon; apply le_IZR; lra).
     lra.
-  -    
+  - pose (U := up (IZR x / 2)).
+    replace (up (IZR x / 2)) with U in |- * by auto.
+    assert (f U <= C * (IZR U * ln (IZR U))).
+    + apply IH.
+      -- split.
+         (* TODO: some refactoring *)
+         ++ generalize (up_fund (IZR x / 2)); intros [H1 H2].
+            subst U.
+            apply le_IZR.
+            assert (4 < (IZR x)) by (apply IZR_lt; lia).
+            lra.
+         ++ generalize (up_fund (IZR x / 2)); intros [H1 H2].
+            subst U.
+            apply lt_IZR.
+            assert (4 < (IZR x)) by (apply IZR_lt; lia).
+            lra.
+      -- generalize (up_fund (IZR x / 2)); intros [H1 H2].
+            subst U.
+            apply le_IZR.
+            assert (4 < (IZR x)) by (apply IZR_lt; lia).
+            lra.
+    + pose (D := down (IZR x / 2)).
+    replace (down (IZR x / 2)) with D in |- * by auto.
+    assert (f D <= C * (IZR D * ln (IZR D))).
+      -- apply IH.
+         (* generalize (down_fund (IZR x / 2)); intros [H1 H2]. *)
+         assert (5 <= x)%Z by lia.
+         split; subst D.
+         ++ SearchAbout (_ \/ _ \/ _).
+            generalize (Z.lt_trichotomy x 6).
+            intro tri; destruct tri.
+            { assert (x = 5%Z) by lia.
+              subst x.
+              replace 5%Z with (4 + 1)%Z by auto.
+              rewrite plus_IZR.
+              SearchAbout ((_ + _) / _).
+              rewrite Rdiv_plus_distr.
+              replace (4/2) with 2 by lra.
+              SearchAbout (down (IZR _ + _)).
+              rewrite eq_down_add.
+              assert (0 <= down (1 / 2))%Z by (apply down_pos; lra).
+              lia. }
+            { assert (6 <= IZR x) by (apply IZR_le; lia).
+              generalize (down_fund (IZR x / 2)); intros [H4 H5].
+              apply le_IZR.
+              lra. }
+         ++ apply lt_IZR.
+            assert (5 <= IZR x) by (apply IZR_le; lia).
+            generalize (down_fund (IZR x / 2)); intros; lra.
+         ++ assert (5 <= x)%Z by lia.
+            subst D.
+            generalize (Z.lt_trichotomy x 6).
+            intro tri; destruct tri.
+            { assert (x = 5%Z) by lia.
+              subst x.
+              replace 5%Z with (4 + 1)%Z by auto.
+              rewrite plus_IZR.
+              SearchAbout ((_ + _) / _).
+              rewrite Rdiv_plus_distr.
+              replace (4/2) with 2 by lra.
+              SearchAbout (down (IZR _ + _)).
+              rewrite eq_down_add.
+              assert (0 <= down (1 / 2))%Z by (apply down_pos; lra).
+              lia. }
+            { assert (6 <= IZR x) by (apply IZR_le; lia).
+              generalize (down_fund (IZR x / 2)); intros [H4 H5].
+              apply le_IZR.
+              lra. }
+      -- apply Rle_trans with (r2 := (C * (IZR U * ln (IZR U))) + (C * (IZR D * ln (IZR D))) + 1); [nra | ].
+         SearchAbout (_ * (_ + _)).
+         rewrite <- Rmult_plus_distr_l.
+         subst U; subst D.
     fail.
 Qed.
 
