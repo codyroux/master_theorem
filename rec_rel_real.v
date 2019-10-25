@@ -46,11 +46,11 @@ Search (R -> Z).
 
 Search (Z -> nat).
 
-SearchAbout (up _). (* up x is the the int upper bound of x, except when x is an int, in which case it's x + 1. *)
 SearchAbout (Int_part _).
 SearchAbout (INR _).
 
-Definition down (x : R) : Z := ((up x) - 1)%Z.
+Locate up.
+Locate down.
 
 
 Fixpoint Interp (e : Expr) (f : Z -> R) (n : Z) : R :=
@@ -86,11 +86,8 @@ Qed.
 Lemma test2 : ValRel (Td <n> :== 2 <*> (Tu (<n> </> 2))) (fun n => IZR n).
 Proof.
   unfold ValRel; intros; simpl Interp.
-  unfold down.
-  rewrite minus_IZR.
-  rewrite eq_up_IZR.
-  ring_simplify.
-  pose (Hdiv := up_fund (IZR n / 2)); destruct Hdiv.
+  generalize (down_fund (IZR n)); intros [H1 H2].
+  generalize (up_fund (IZR n / 2)); intros [H3 H4].
   nra.
 Qed.
 
@@ -313,14 +310,36 @@ Qed.
 
 Check ln.
 
+Parameter C : R.
+Hypothesis C_pos : 0 <= C.
+
 Theorem master_simple : forall f, positive f ->
                                   monotone f ->
                                   ValRel (Tu <n> :== Tu (<n> </> 2) <+> (Td (<n> </> 2)) <+> 1) f ->
                                   f ∈O (fun n => IZR n * ln (IZR n)).
 Proof.
   unfold ValRel; simpl; intros f f_pos f_mon f_val.
-  o_of_n_bounds 1%Z 1.
-  fail.
+  (* The choice of constants here is pretty darn subtle. *)
+  o_of_n_bounds 2%Z C; [ now (apply C_pos) |].
+  intros M lt.
+  SearchAbout (IZR _ <= _ -> _).
+  generalize (le_IZR _ _ lt).
+  Check Wf_Z.Zlt_lower_bound_rec.
+  pattern M.
+  eapply Wf_Z.Zlt_lower_bound_rec with (z := 2%Z); [| apply le_IZR; now auto].
+  intros x IH lt_x _.
+  replace x with (up (IZR x)) by (apply eq_up_IZR).
+  eapply Rle_trans; [now (apply f_val) | rewrite eq_up_IZR].
+  SearchAbout ((_ <= _)%Z \/ _).
+  case (Z.le_gt_cases x 4); intros.
+  - SearchAbout (_ -> IZR _ <= IZR _).
+    assert (IZR x <= 4) by (apply IZR_le; auto).
+    assert (IZR x / 2 <= 2) by lra.
+    generalize (down_fund (IZR x / 2)); intros [Hd1 Hd2].
+    generalize (up_fund (IZR x / 2)); intros [Hu1 Hu2].
+    Locate down.
+    (* assert (up (IZR x / 2) *)
+    fail.
 Qed.
 
 
