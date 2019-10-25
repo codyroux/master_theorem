@@ -77,19 +77,18 @@ Proof.
   rewrite <- mult_IZR; auto.
 Qed.
 
-
-Lemma eq_up_IZR : forall n, IZR (up (IZR n)) = (IZR n).
+Lemma eq_up_IZR : forall n, up (IZR n) = n.
 Proof.
   intros.
-  apply f_equal.
   symmetry.
   apply tech_up; lra.
 Qed.
+  
+Lemma eq_down_IZR : forall n, down (IZR n) = n.
+Proof.
+  intros; symmetry; apply tech_down; lra.
+Qed.
 
-
-SearchAbout ( Rmax _ _ <= _).
-
-SearchAbout ( _ <= _ -> _ <= _ -> _ <= _).
 
 Lemma Rmax_split_l : forall x y z, Rmax x y <= z -> x <= z.
 Proof.
@@ -142,6 +141,30 @@ Proof.
     assert (IZR (Z.neg p) < 0) by (apply IZR_lt; lia).
     lra.
 Qed.
+
+
+Open Scope Z_scope.
+
+Lemma up_down_half : forall n : Z, down (IZR n / 2) + up (IZR n / 2) = n.
+Proof.
+  intro n.
+  case (Z.Even_or_Odd n); intros H; destruct H; subst n.
+  - rewrite mult_IZR.
+    replace ((2 * (IZR x) / 2)%R) with (IZR x) by nra.
+    rewrite eq_up_IZR; rewrite eq_down_IZR; lia.
+  - rewrite plus_IZR, mult_IZR.
+    replace ((2 * IZR x + 1) / 2)%R with (((IZR x) + (1/2))%R) by nra.
+    SearchAbout (IZR _ = IZR _ -> _).
+    assert (down (IZR x) = down (IZR x + 1 / 2)).
+    + apply tech_down; rewrite eq_down_IZR; lra.
+    + rewrite <- H.
+      assert (up (IZR x) + 1 = up (IZR x + 1 / 2)).
+      -- apply tech_up; rewrite eq_up_IZR; rewrite plus_IZR; lra.
+      -- rewrite <- H0.
+         rewrite eq_down_IZR, eq_up_IZR; now ring.
+Qed.
+
+Close Scope Z_scope.
 
 
 Lemma div_down : forall x y, 0 < y -> IZR (down (x / y)) <= (IZR (down x)) / y.

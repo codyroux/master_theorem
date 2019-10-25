@@ -90,8 +90,8 @@ Proof.
   rewrite minus_IZR.
   rewrite eq_up_IZR.
   ring_simplify.
-  pose (Hdiv := for_base_fp (IZR n / 2)); destruct Hdiv.
-  lra.
+  pose (Hdiv := up_fund (IZR n / 2)); destruct Hdiv.
+  nra.
 Qed.
 
 
@@ -315,9 +315,11 @@ Check ln.
 
 Theorem master_simple : forall f, positive f ->
                                   monotone f ->
-                                  ValRel (Tu <n> :== (2 <*> (Td (<n> </> 2))) <+> 1) f ->
+                                  ValRel (Tu <n> :== Tu (<n> </> 2) <+> (Td (<n> </> 2)) <+> 1) f ->
                                   f ∈O (fun n => IZR n * ln (IZR n)).
-Proof.   
+Proof.
+  unfold ValRel; simpl; intros f f_pos f_mon f_val.
+  o_of_n_bounds 1%Z 1.
   fail.
 Qed.
 
