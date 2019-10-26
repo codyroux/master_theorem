@@ -175,12 +175,3 @@ Qed.
 
 Close Scope Z_scope.
 
-
-Lemma div_down : forall x y, 0 < y -> IZR (down (x / y)) <= (IZR (down x)) / y.
-Proof.
-  intros x y pos_y.
-  generalize (down_fund (x / y)); intros [H1 H2].
-  generalize (down_fund x); intros [H3 H4].
-  (* fail. *)
-Abort.
-

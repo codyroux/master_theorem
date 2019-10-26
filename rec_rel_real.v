@@ -311,9 +311,6 @@ Qed.
 
 Check ln.
 
-Parameter C : R.
-Hypothesis C_pos : 0 <= C.
-(* We're gonna need some bounds for C, for now we punt *)
 Axiom I_GIVE_UP : forall {P}, P.
 
 
@@ -338,6 +335,42 @@ Proof.
 Qed.
 
 
+
+
+
+Theorem ln_plus_gt : forall x y, 1 < x -> 0 < y -> ln (x + y) < ln x + y.
+Proof.
+  intros x y H H0.
+  SearchAbout (exp _ < _).
+  apply exp_lt_inv.
+  rewrite exp_plus.
+  repeat rewrite exp_ln; [ | lra | lra].
+  generalize (exp_ineq1 y H0); intros; nra.
+Qed.
+
+Check exp_ineq1.
+
+Theorem ln_plus_gt2 : forall x y, 2 < x -> 0 < y -> ln (x + y) < ln x + y / 2.
+  intros x y H H0.
+  SearchAbout (exp _ < _).
+  apply exp_lt_inv.
+  rewrite exp_plus.
+  repeat rewrite exp_ln; [ | lra | lra].
+  assert (H1 : 0 < y / 2) by lra.
+  generalize (exp_ineq1 (y/2) H1); intros; nra.
+Qed.
+
+Theorem ln_plus_gt4 : forall x y, 4 < x -> 0 < y -> ln (x + y) < ln x + y / 4.
+  intros x y H H0.
+  SearchAbout (exp _ < _).
+  apply exp_lt_inv.
+  rewrite exp_plus.
+  repeat rewrite exp_ln; [ | lra | lra].
+  assert (H1 : 0 < y / 4) by lra.
+  generalize (exp_ineq1 (y/4) H1); intros; nra.
+Qed.
+
+
 Theorem master_simple : forall f, positive f ->
                                   monotone f ->
                                   ValRel (Tu <n> :== Tu (<n> </> 2) <+> (Td (<n> </> 2)) <+> 1) f ->
@@ -345,27 +378,31 @@ Theorem master_simple : forall f, positive f ->
 Proof.
   unfold ValRel; simpl; intros f f_pos f_mon f_val.
   (* The choice of constants here is pretty darn subtle. *)
-  o_of_n_bounds 2%Z C; [ now (apply C_pos) |].
+  pose (C := Rmax 1 (2 * (f 5%Z) + 1)).
+  assert (C_gt_1 : 1 <= C) by (unfold C; apply Rmax_l).
+  assert (C_pos : 0 <= C) by lra.
+  assert (C_gt_2 : 2 * f 5%Z + 1 <= C) by (unfold C; apply Rmax_r).
+  o_of_n_bounds 4%Z C.
   intros M lt.
   SearchAbout (IZR _ <= _ -> _).
   generalize (le_IZR _ _ lt).
   Check Wf_Z.Zlt_lower_bound_rec.
   pattern M.
-  eapply Wf_Z.Zlt_lower_bound_rec with (z := 2%Z); [| apply le_IZR; now auto].
+  eapply Wf_Z.Zlt_lower_bound_rec with (z := 4%Z); [| apply le_IZR; now auto].
   intros x IH lt_x _.
   replace x with (up (IZR x)) by (apply eq_up_IZR).
   eapply Rle_trans; [now (apply f_val) | rewrite eq_up_IZR].
   SearchAbout ((_ <= _)%Z \/ _).
-  case (Z.le_gt_cases x 4); intros.
+  case (Z.le_gt_cases x 8); intros.
   - SearchAbout (_ -> IZR _ <= IZR _).
     (* This is very tedious!!! *)
-    assert (IZR x <= 4) by (apply IZR_le; auto).
-    assert (IZR x / 2 <= 2) by lra.
+    assert (IZR x <= 8) by (apply IZR_le; auto).
+    assert (IZR x / 2 <= 4) by lra.
     generalize (down_fund (IZR x / 2)); intros [Hd1 Hd2].
     generalize (up_fund (IZR x / 2)); intros [Hu1 Hu2].
-    assert (up (IZR x / 2) <= 3)%Z by (apply le_IZR; lra).
-    assert (down (IZR x / 2) <= 3)%Z by (apply le_IZR; lra).
-    assert (2 <= IZR x) by (apply IZR_le; auto).
+    assert (up (IZR x / 2) <= 5)%Z by (apply le_IZR; lra).
+    assert (down (IZR x / 2) <= 5)%Z by (apply le_IZR; lra).
+    assert (4 <= IZR x) by (apply IZR_le; auto).
     SearchAbout (_ < ln _).
     Check ln_lt_2.
     assert (/2 <= ln (IZR x))
@@ -376,13 +413,13 @@ Proof.
         (apply Rmult_le_compat_l; [now (apply C_pos)  | nra]).
     Check Rle_trans.
     eapply Rle_trans; [| exact H6].
-    replace (C * (2 * / 2)) with C by nra.
+    replace (C * (2 * / 2)) with C by lra.
     (* TODO: FIX THIS *)
-    assert (2 * (f 3%Z) + 1 <= C) by (apply I_GIVE_UP).
+    assert (2 * (f 5%Z) + 1 <= C) by (auto).
     eapply Rle_trans; [| exact H7].
     SearchAbout (_ -> _ + _ <= _).
     apply Rplus_le_compat_r.
-    assert (f (up (IZR x / 2)) + f (down (IZR x / 2)) <= f 3%Z + f 3%Z) by
+    assert (f (up (IZR x / 2)) + f (down (IZR x / 2)) <= f 5%Z + f 5%Z) by
     (apply Rplus_le_compat; apply f_mon; apply le_IZR; lra).
     lra.
   - pose (U := up (IZR x / 2)).
@@ -394,74 +431,120 @@ Proof.
          ++ generalize (up_fund (IZR x / 2)); intros [H1 H2].
             subst U.
             apply le_IZR.
-            assert (4 < (IZR x)) by (apply IZR_lt; lia).
+            assert (8 < (IZR x)) by (apply IZR_lt; lia).
             lra.
          ++ generalize (up_fund (IZR x / 2)); intros [H1 H2].
             subst U.
             apply lt_IZR.
-            assert (4 < (IZR x)) by (apply IZR_lt; lia).
+            assert (8 < (IZR x)) by (apply IZR_lt; lia).
             lra.
       -- generalize (up_fund (IZR x / 2)); intros [H1 H2].
             subst U.
             apply le_IZR.
-            assert (4 < (IZR x)) by (apply IZR_lt; lia).
+            assert (8 < (IZR x)) by (apply IZR_lt; lia).
             lra.
     + pose (D := down (IZR x / 2)).
     replace (down (IZR x / 2)) with D in |- * by auto.
     assert (f D <= C * (IZR D * ln (IZR D))).
       -- apply IH.
          (* generalize (down_fund (IZR x / 2)); intros [H1 H2]. *)
-         assert (5 <= x)%Z by lia.
+         assert (9 <= x)%Z by lia.
          split; subst D.
          ++ SearchAbout (_ \/ _ \/ _).
-            generalize (Z.lt_trichotomy x 6).
+            generalize (Z.lt_trichotomy x 10).
             intro tri; destruct tri.
-            { assert (x = 5%Z) by lia.
+            { assert (x = 9%Z) by lia.
               subst x.
-              replace 5%Z with (4 + 1)%Z by auto.
+              replace 9%Z with (8 + 1)%Z by auto.
               rewrite plus_IZR.
               SearchAbout ((_ + _) / _).
               rewrite Rdiv_plus_distr.
-              replace (4/2) with 2 by lra.
+              replace (8/2) with 4 by lra.
               SearchAbout (down (IZR _ + _)).
               rewrite eq_down_add.
               assert (0 <= down (1 / 2))%Z by (apply down_pos; lra).
               lia. }
-            { assert (6 <= IZR x) by (apply IZR_le; lia).
+            { assert (10 <= IZR x) by (apply IZR_le; lia).
               generalize (down_fund (IZR x / 2)); intros [H4 H5].
               apply le_IZR.
               lra. }
          ++ apply lt_IZR.
-            assert (5 <= IZR x) by (apply IZR_le; lia).
+            assert (9 <= IZR x) by (apply IZR_le; auto).
             generalize (down_fund (IZR x / 2)); intros; lra.
-         ++ assert (5 <= x)%Z by lia.
+         ++ assert (9 <= x)%Z by lia.
             subst D.
-            generalize (Z.lt_trichotomy x 6).
+            generalize (Z.lt_trichotomy x 10).
             intro tri; destruct tri.
-            { assert (x = 5%Z) by lia.
+            { assert (x = 9%Z) by lia.
               subst x.
-              replace 5%Z with (4 + 1)%Z by auto.
+              replace 9%Z with (8 + 1)%Z by auto.
               rewrite plus_IZR.
-              SearchAbout ((_ + _) / _).
               rewrite Rdiv_plus_distr.
-              replace (4/2) with 2 by lra.
-              SearchAbout (down (IZR _ + _)).
+              replace (8/2) with 4 by lra.
               rewrite eq_down_add.
               assert (0 <= down (1 / 2))%Z by (apply down_pos; lra).
               lia. }
-            { assert (6 <= IZR x) by (apply IZR_le; lia).
+            { assert (10 <= IZR x) by (apply IZR_le; lia).
               generalize (down_fund (IZR x / 2)); intros [H4 H5].
               apply le_IZR.
               lra. }
       -- apply Rle_trans with (r2 := (C * (IZR U * ln (IZR U))) + (C * (IZR D * ln (IZR D))) + 1); [nra | ].
-         SearchAbout (_ * (_ + _)).
-         rewrite <- Rmult_plus_distr_l.
-         subst U; subst D.
-    fail.
+         assert (8 < IZR x) by (apply IZR_lt; auto).
+         assert (0 < IZR D) by (unfold D; generalize (down_fund (IZR x / 2)); intros [H3 H4]; lra).
+         assert (0 < IZR U) by (unfold U; generalize (up_fund (IZR x / 2)); intros [H4 H5]; lra).
+         assert (C * (IZR D * ln (IZR D)) <= C * (IZR D * ln (IZR U))).
+         ++ apply Rmult_le_compat_l; [apply C_pos|].
+            apply Rmult_le_compat_l; [apply IZR_le; apply down_pos; lra |].
+            apply monotone_ln; [now auto| now auto | apply down_leq_up; lra].
+         ++ apply Rle_trans with (r2 := (C * (IZR U * ln (IZR U))) + (C * (IZR D * ln (IZR U))) + 1); [nra | ].
+            SearchAbout (_ * (_ + _)).
+            rewrite <- Rmult_plus_distr_l.
+            rewrite <- Rmult_plus_distr_r.
+            rewrite <- plus_IZR.
+            SearchAbout (_ + _ = _ + _)%Z.
+            rewrite Z.add_comm.
+            unfold U, D.
+            (* Freaking finally! *)
+            rewrite up_down_half.
+            assert (ln (IZR (up (IZR x / 2))) <= ln (IZR x / 2) + 1/4).
+            { apply Rle_trans with (r2 := ln ((IZR x / 2) + 1)).
+              - apply monotone_ln; [now auto| lra |].
+                generalize (up_fund (IZR x / 2)); intros; lra.
+              - apply Rlt_le.
+                apply ln_plus_gt4; lra.
+            }
+            apply Rle_trans with (r2 := C * (IZR x * (ln (IZR x / 2) + 1/4)) + 1).
+            apply Rplus_le_compat.
+            { apply Rmult_le_compat_l; [apply C_pos|].
+              apply Rmult_le_compat_l; [lra| auto].
+            }
+            { lra. }
+            ring_simplify.
+            SearchAbout (ln (_ * _)).
+            unfold Rdiv.
+            rewrite ln_mult; [| lra | lra].
+            SearchAbout (ln (/_)).
+            rewrite ln_Rinv; [|lra].
+            ring_simplify.
+            assert (- C * IZR x * ln 2 + C * IZR x * / 4 + 1 <= 0).
+            {
+              replace 1 with (/ IZR x * IZR x); [| apply Rinv_l; lra].
+              replace (C * IZR x * / 4) with (C * /4 * IZR x) by ring.
+              replace (- C * IZR x * ln 2) with (- C * ln 2 * IZR x) by ring.
+              repeat rewrite <- Rmult_plus_distr_r.
+              assert (/ IZR x < / 8) by (apply Rinv_1_lt_contravar; lra).
+              apply Rle_trans with (r2 := (- C * ln 2 + C * / 4 + / 8) * IZR x); [nra | ].
+              replace 0 with (0 * IZR x) by ring.
+              apply Rmult_le_compat_r; [lra|].
+              apply Rle_trans with (r2 := - C * / 2 + C * / 4 + / 8); [generalize ln_lt_2, C_pos; intros; nra|].
+              assert (1 <= C) by auto.
+              lra.
+            }
+            lra.
 Qed.
 
 
-Theorem O_pow : forall n m, n <= m -> (fun k => k^n) ∈O (fun k => k^m).
+Theorem O_pow : forall n m, (n <= m)%nat -> (fun k => (IZR k)^n) ∈O (fun k => (IZR k)^m).
 Proof.
   fail.
 Qed.
