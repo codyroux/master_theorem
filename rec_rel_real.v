@@ -371,12 +371,12 @@ Theorem ln_plus_gt4 : forall x y, 4 < x -> 0 < y -> ln (x + y) < ln x + y / 4.
 Qed.
 
 
-Theorem master_simple : forall f, positive f ->
-                                  monotone f ->
+Theorem master_simple : forall f, monotone f -> (* Monotonicity can be relaxed, it's just a bit annoying,
+                                                 as C would have to be a max over f n for n in [0..5] *)
                                   ValRel (Tu <n> :== Tu (<n> </> 2) <+> (Td (<n> </> 2)) <+> 1) f ->
                                   f ∈O (fun n => IZR n * ln (IZR n)).
 Proof.
-  unfold ValRel; simpl; intros f f_pos f_mon f_val.
+  unfold ValRel; simpl; intros f f_mon f_val.
   (* The choice of constants here is pretty darn subtle. *)
   pose (C := Rmax 1 (2 * (f 5%Z) + 1)).
   assert (C_gt_1 : 1 <= C) by (unfold C; apply Rmax_l).
